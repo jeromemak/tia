@@ -10,9 +10,11 @@ from datetime import datetime, timedelta
 from pandas import DataFrame, to_datetime, concat, Panel
 import numpy as np
 
-SecurityErrorAttrs = ['security', 'source', 'code', 'category', 'message', 'subcategory']
+SecurityErrorAttrs = ['security', 'source',
+                      'code', 'category', 'message', 'subcategory']
 SecurityError = namedtuple('SecurityError', SecurityErrorAttrs)
-FieldErrorAttrs = ['security', 'field', 'source', 'code', 'category', 'message', 'subcategory']
+FieldErrorAttrs = ['security', 'field', 'source',
+                   'code', 'category', 'message', 'subcategory']
 FieldError = namedtuple('FieldError', FieldErrorAttrs)
 
 # poor mans debugging
@@ -37,7 +39,7 @@ class XmlHelper(object):
         while iter.Next():
             msg = iter.Message
             if DEBUG:
-                print msg.Print
+                print(msg.Print)
             if msg.AsElement.HasElement('responseError'):
                 raise Exception(msg.AsElement.GetValue('message'))
             yield msg
@@ -53,7 +55,8 @@ class XmlHelper(object):
         for i in range(node.NumValues):
             row = node.GetValue(i)
             if i == 0:  # Get the ordered cols and assume they are constant
-                cols = [str(row.GetElement(_).Name) for _ in range(row.NumElements)]
+                cols = [str(row.GetElement(_).Name)
+                        for _ in range(row.NumElements)]
 
             for cidx in range(row.NumElements):
                 col = row.GetElement(cidx)
@@ -64,7 +67,7 @@ class XmlHelper(object):
     def as_value(ele):
         """ convert the specified element as a python value """
         dtype = ele.Datatype
-        #print '%s = %s' % (ele.Name, dtype)
+        # print '%s = %s' % (ele.Name, dtype)
         if dtype in (1, 2, 3, 4, 5, 6, 7, 9, 12):
             # BOOL, CHAR, BYTE, INT32, INT64, FLOAT32, FLOAT64, BYTEARRAY, DECIMAL)
             return ele.Value
@@ -84,13 +87,15 @@ class XmlHelper(object):
             v = ele.Value
             return datetime(year=v.year, month=v.month, day=v.day, hour=v.hour, minute=v.minute, second=v.second)
         elif dtype == 14:  # Enumeration
-            raise NotImplementedError('ENUMERATION data type needs implemented')
+            raise NotImplementedError(
+                'ENUMERATION data type needs implemented')
         elif dtype == 16:  # Choice
             raise NotImplementedError('CHOICE data type needs implemented')
         elif dtype == 15:  # SEQUENCE
             return XmlHelper.get_sequence_value(ele)
         else:
-            raise NotImplementedError('Unexpected data type %s. Check documentation' % dtype)
+            raise NotImplementedError(
+                'Unexpected data type %s. Check documentation' % dtype)
 
     @staticmethod
     def get_child_value(parent, name, allow_missing=0):
@@ -99,7 +104,8 @@ class XmlHelper(object):
             if allow_missing:
                 return np.nan
             else:
-                raise Exception('failed to find child element %s in parent' % name)
+                raise Exception(
+                    'failed to find child element %s in parent' % name)
         else:
             return XmlHelper.as_value(parent.GetElement(name))
 
@@ -148,7 +154,8 @@ class XmlHelper(object):
         assert node.Name == 'securityData' and not node.IsArray
         if node.HasElement('securityError'):
             secid = XmlHelper.get_child_value(node, 'security')
-            err = XmlHelper.as_security_error(node.GetElement('securityError'), secid)
+            err = XmlHelper.as_security_error(
+                node.GetElement('securityError'), secid)
             return err
         else:
             return None
@@ -167,11 +174,11 @@ class XmlHelper(object):
 
 
 def debug_event(evt):
-    print 'unhandled event: %s' % evt.EventType
+    print('unhandled event: %s' % evt.EventType)
     if evt.EventType in [constants.RESPONSE, constants.PARTIAL_RESPONSE]:
-        print 'messages:'
+        print('messages:')
         for msg in XmlHelper.message_iter(evt):
-            print msg.Print
+            print(msg.Print)
 
 
 class ResponseHandler(object):
@@ -232,10 +239,12 @@ class Request(object):
 
     def raise_exception(self):
         if not self.ignore_security_error and len(self.security_errors) > 0:
-            msgs = ['(%s, %s, %s)' % (s.security, s.category, s.message) for s in self.security_errors]
+            msgs = ['(%s, %s, %s)' % (s.security, s.category, s.message)
+                    for s in self.security_errors]
             raise Exception('SecurityError: %s' % ','.join(msgs))
         if not self.ignore_field_error and len(self.field_errors) > 0:
-            msgs = ['(%s, %s, %s, %s)' % (s.security, s.field, s.category, s.message) for s in self.field_errors]
+            msgs = ['(%s, %s, %s, %s)' % (s.security, s.field,
+                                          s.category, s.message) for s in self.field_errors]
             raise Exception('FieldError: %s' % ','.join(msgs))
         raise Exception('Programmer Error: No exception to raise')
 
@@ -259,7 +268,7 @@ class Request(object):
     def apply_overrides(request, omap):
         """ add the given overrides (omap) to bloomberg request """
         if omap:
-            for k, v in omap.iteritems():
+            for k, v in omap.items():
                 o = request.GetElement('overrides').AppendElment()
                 o.SetElement('fieldId', k)
                 o.SetElement('value', v)
@@ -272,9 +281,10 @@ class ReferenceDataRequest(Request):
         response_type: (frame, map) how to return the results
         """
         assert response_type in ('frame', 'map')
-        Request.__init__(self, ignore_security_error=ignore_security_error, ignore_field_error=ignore_field_error)
-        self.symbols = isinstance(symbols, basestring) and [symbols] or symbols
-        self.fields = isinstance(fields, basestring) and [fields] or fields
+        Request.__init__(self, ignore_security_error=ignore_security_error,
+                         ignore_field_error=ignore_field_error)
+        self.symbols = isinstance(symbols, str) and [symbols] or symbols
+        self.fields = isinstance(fields, str) and [fields] or fields
         self.overrides = overrides or {}
         # response related
         self.response = {} if response_type == 'map' else defaultdict(list)
@@ -284,7 +294,8 @@ class ReferenceDataRequest(Request):
         fmtargs = dict(clz=self.__class__.__name__,
                        symbols=','.join(self.symbols),
                        fields=','.join(self.fields),
-                       overrides=','.join(['%s=%s' % (k, v) for k, v in self.overrides.iteritems()]),
+                       overrides=','.join(['%s=%s' % (k, v)
+                                          for k, v in self.overrides.items()]),
                        rt=self.response_type,
                        ise=self.ignore_security_error and True or False,
                        ife=self.ignore_field_error and True or False,
@@ -298,7 +309,8 @@ class ReferenceDataRequest(Request):
     def get_bbg_request(self, svc, session):
         # create the bloomberg request object
         request = svc.CreateRequest('ReferenceDataRequest')
-        [request.GetElement('securities').AppendValue(sec) for sec in self.symbols]
+        [request.GetElement('securities').AppendValue(sec)
+         for sec in self.symbols]
         [request.GetElement('fields').AppendValue(fld) for fld in self.fields]
         Request.apply_overrides(request, self.overrides)
         return request
@@ -307,7 +319,8 @@ class ReferenceDataRequest(Request):
         sid = XmlHelper.get_child_value(node, 'security')
         farr = node.GetElement('fieldData')
         fdata = XmlHelper.get_child_values(farr, self.fields)
-        assert len(fdata) == len(self.fields), 'field length must match data length'
+        assert len(fdata) == len(
+            self.fields), 'field length must match data length'
         if self.response_type == 'map':
             self.response[sid] = fdata
         else:
@@ -360,14 +373,16 @@ class HistoricalDataRequest(Request):
         fields : string or list
         start : start date (if None then use 1 year ago)
         end : end date (if None then use today)
-        period : ('DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'SEMI_ANNUALLY', 'YEARLY')
+        period : ('DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'SEMI-ANNUAL', 'YEARLY')
         ignore_field_errors : bool
         ignore_security_errors : bool
         """
-        Request.__init__(self, ignore_security_error=ignore_security_error, ignore_field_error=ignore_field_error)
-        assert period in ('DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'SEMI_ANNUALLY', 'YEARLY')
-        self.symbols = isinstance(symbols, basestring) and [symbols] or symbols
-        self.fields = isinstance(fields, basestring) and [fields] or fields
+        Request.__init__(self, ignore_security_error=ignore_security_error,
+                         ignore_field_error=ignore_field_error)
+        assert period in ('DAILY', 'WEEKLY', 'MONTHLY',
+                          'QUARTERLY', 'SEMI-ANNUAL', 'YEARLY')
+        self.symbols = isinstance(symbols, str) and [symbols] or symbols
+        self.fields = isinstance(fields, str) and [fields] or fields
         self.overrides = overrides or {}
         if start is None:
             start = datetime.today() - timedelta(365)
@@ -395,7 +410,8 @@ class HistoricalDataRequest(Request):
     def get_bbg_request(self, svc, session):
         # create the bloomberg request object
         request = svc.CreateRequest('HistoricalDataRequest')
-        [request.GetElement('securities').AppendValue(sec) for sec in self.symbols]
+        [request.GetElement('securities').AppendValue(sec)
+         for sec in self.symbols]
         [request.GetElement('fields').AppendValue(fld) for fld in self.fields]
         request.Set('startDate', self.start.strftime('%Y%m%d'))
         request.Set('endDate', self.end.strftime('%Y%m%d'))
@@ -410,7 +426,8 @@ class HistoricalDataRequest(Request):
         dmap = defaultdict(list)
         for i in range(farr.NumValues):
             pt = farr.GetValue(i)
-            [dmap[f].append(XmlHelper.get_child_value(pt, f, allow_missing=1)) for f in ['date'] + self.fields]
+            [dmap[f].append(XmlHelper.get_child_value(pt, f, allow_missing=1))
+             for f in ['date'] + self.fields]
         idx = dmap.pop('date')
         frame = DataFrame(dmap, columns=self.fields, index=idx)
         frame.index.name = 'date'
@@ -423,14 +440,15 @@ class HistoricalDataRequest(Request):
             node = msg.GetElement('securityData')
             if node.HasElement('securityError'):
                 secid = XmlHelper.get_child_value(node, 'security')
-                self.security_errors.append(XmlHelper.as_security_error(node.GetElement('securityError'), secid))
+                self.security_errors.append(XmlHelper.as_security_error(
+                    node.GetElement('securityError'), secid))
             else:
                 self.on_security_data_node(node)
 
     def response_as_single(self, copy=0):
         """ convert the response map to a single data frame with Multi-Index columns """
         arr = []
-        for sid, frame in self.response.iteritems():
+        for sid, frame in self.response.items():
             if copy:
                 frame = frame.copy()
             'security' not in frame and frame.insert(0, 'security', sid)
@@ -458,7 +476,7 @@ class IntrdayBarRequest(Request):
         """
         Request.__init__(self)
         assert event in ('TRADE', 'BID', 'ASK', 'BEST_BID', 'BEST_ASK')
-        assert isinstance(symbol, basestring)
+        assert isinstance(symbol, str)
         if start is None:
             start = datetime.today() - timedelta(30)
         if end is None:
@@ -482,7 +500,6 @@ class IntrdayBarRequest(Request):
                        )
         return '<{clz}([{symbol}], interval={interval}, start={start}, end={end}, event={event}'.format(**fmtargs)
 
-
     def get_bbg_service_name(self):
         return '//blp/refdata'
 
@@ -495,7 +512,8 @@ class IntrdayBarRequest(Request):
         request.Set('eventType', self.event)
         request.Set('startDateTime',
                     session.CreateDatetime(start.year, start.month, start.day, start.hour, start.minute))
-        request.Set('endDateTime', session.CreateDatetime(end.year, end.month, end.day, end.hour, end.minute))
+        request.Set('endDateTime', session.CreateDatetime(
+            end.year, end.month, end.day, end.hour, end.minute))
         return request
 
     def on_event(self, evt, is_final):
@@ -506,7 +524,8 @@ class IntrdayBarRequest(Request):
             for i in range(bars.NumValues):
                 bar = bars.GetValue(i)
                 ts = bar.GetElement(0).Value
-                response['time'].append(datetime(ts.year, ts.month, ts.day, ts.hour, ts.minute))
+                response['time'].append(
+                    datetime(ts.year, ts.month, ts.day, ts.hour, ts.minute))
                 response['open'].append(bar.GetElement(1).Value)
                 response['high'].append(bar.GetElement(2).Value)
                 response['low'].append(bar.GetElement(3).Value)
@@ -516,13 +535,15 @@ class IntrdayBarRequest(Request):
 
         if is_final:
             idx = response.pop('time')
-            self.response = DataFrame(response, columns=['open', 'high', 'low', 'close', 'volume', 'events'], index=idx)
+            self.response = DataFrame(response, columns=[
+                                      'open', 'high', 'low', 'close', 'volume', 'events'], index=idx)
 
 
 class Terminal(object):
     @classmethod
     def execute_request(cls, request):
-        session = DispatchWithEvents('blpapicom.ProviderSession.1', ResponseHandler)
+        session = DispatchWithEvents(
+            'blpapicom.ProviderSession.1', ResponseHandler)
         session.Start()
         try:
             svcname = request.get_bbg_service_name()
@@ -551,56 +572,62 @@ if __name__ == '__main__':
     m = pandas.datetools.BMonthBegin(-2).apply(datetime.now())
 
     def banner(msg):
-        print '*' * 25
-        print msg
-        print '*' * 25
+        print('*' * 25)
+        print(msg)
+        print('*' * 25)
 
     banner('ReferenceDataRequest: single security, single field, frame response')
-    req = ReferenceDataRequest('msft us equity', 'px_last', response_type='frame')
-    print req.execute().response
+    req = ReferenceDataRequest(
+        'msft us equity', 'px_last', response_type='frame')
+    print(req.execute().response)
 
     banner('ReferenceDataRequest: single security, single field, map response')
-    req = ReferenceDataRequest('msft us equity', 'px_last', response_type='map')
-    print req.execute().response
+    req = ReferenceDataRequest(
+        'msft us equity', 'px_last', response_type='map')
+    print(req.execute().response)
 
     banner('ReferenceDataRequest: multi-security, multi-field')
-    req = ReferenceDataRequest(['eurusd curncy', 'msft us equity'], ['px_open', 'px_last'])
-    print req.execute().response
+    req = ReferenceDataRequest(['eurusd curncy', 'msft us equity'], [
+                               'px_open', 'px_last'])
+    print(req.execute().response)
 
     banner('ReferenceDataRequest: single security, multi-field (with bulk), frame response')
     req = ReferenceDataRequest('eurusd curncy', ['px_last', 'fwd_curve'])
     req.execute()
-    print req.response
+    print(req.response)
     # DataFrame within a DataFrame
-    print req.response.fwd_curve[0].tail()
+    print(req.response.fwd_curve[0].tail())
 
     banner('ReferenceDataRequest: multi security, multi-field, bad field')
-    req = ReferenceDataRequest(['eurusd curncy', 'msft us equity'], ['px_last', 'fwd_curve'], ignore_field_error=1)
+    req = ReferenceDataRequest(['eurusd curncy', 'msft us equity'], [
+                               'px_last', 'fwd_curve'], ignore_field_error=1)
     req.execute()
-    print req.response
+    print(req.response)
 
     banner('HistoricalDataRequest: multi security, multi-field, daily data')
-    req = HistoricalDataRequest(['eurusd curncy', 'msft us equity'], ['px_last', 'px_open'], start=d)
+    req = HistoricalDataRequest(['eurusd curncy', 'msft us equity'], [
+                                'px_last', 'px_open'], start=d)
     req.execute()
-    print req.response
-    print '--------- AS SINGLE TABLE ----------'
-    print req.response_as_single()
+    print(req.response)
+    print('--------- AS SINGLE TABLE ----------')
+    print(req.response_as_single())
 
     banner('HistoricalDataRequest: multi security, multi-field, weekly data')
-    req = HistoricalDataRequest(['eurusd curncy', 'msft us equity'], ['px_last', 'px_open'], start=m, period='WEEKLY')
+    req = HistoricalDataRequest(['eurusd curncy', 'msft us equity'], [
+                                'px_last', 'px_open'], start=m, period='WEEKLY')
     req.execute()
-    print req.response
-    print '--------- AS SINGLE TABLE ----------'
-    print req.response_as_single()
-    print '--------- AS PANEL (id indexed) ----------'
-    print req.response_as_panel()
-    print '--------- AS PANEL (field indexed) ----------'
-    print req.response_as_panel(swap=1)
+    print(req.response)
+    print('--------- AS SINGLE TABLE ----------')
+    print(req.response_as_single())
+    print('--------- AS PANEL (id indexed) ----------')
+    print(req.response_as_panel())
+    print('--------- AS PANEL (field indexed) ----------')
+    print(req.response_as_panel(swap=1))
 
     banner('IntrdayBarRequest: every hour')
     req = IntrdayBarRequest('eurusd curncy', 60, start=d)
     req.execute()
-    print req.response[-10:]
+    print(req.response[-10:])
 
     #
     # HOW TO
